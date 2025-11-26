@@ -78,17 +78,8 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
     int width, height;
     CGSize screenSize = [[UIScreen mainScreen] _unjailedReferenceBoundsInPixels].size;
 
-    FBSOrientationObserver *orientationObserver = [[FBSOrientationObserver alloc] init];
-    UIInterfaceOrientation orientation = [orientationObserver activeInterfaceOrientation];
-    TVLog(@"ScreenCapturer: Init with orientation %ld, screenSize %@", (long)orientation, NSStringFromCGSize(screenSize));
-
-    if (UIInterfaceOrientationIsLandscape(orientation)) {
-        width = (int)round(MAX(screenSize.width, screenSize.height));
-        height = (int)round(MIN(screenSize.width, screenSize.height));
-    } else {
-        width = (int)round(MIN(screenSize.width, screenSize.height));
-        height = (int)round(MAX(screenSize.width, screenSize.height));
-    }
+    width = (int)round(screenSize.width);
+    height = (int)round(screenSize.height);
 
     // Pixel format for Alpha, Red, Green and Blue
     unsigned pixelFormat = 0x42475241; // 'ARGB'

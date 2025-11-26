@@ -161,16 +161,7 @@ NS_INLINE void _DTXCalcLinearPinchStartEndPoints(CGRect bounds, CGFloat pixelsSc
         return nil;
 
     CGSize screenSize = [[UIScreen mainScreen] _unjailedReferenceBoundsInPixels].size;
-
-    FBSOrientationObserver *orientationObserver = [[FBSOrientationObserver alloc] init];
-    UIInterfaceOrientation orientation = [orientationObserver activeInterfaceOrientation];
-    TVLog(@"STHIDEventGenerator: Init with orientation %ld, screenSize %@", (long)orientation, NSStringFromCGSize(screenSize));
-
-    if (UIInterfaceOrientationIsLandscape(orientation)) {
-        _physicalScreenSize = CGSizeMake(MAX(screenSize.width, screenSize.height), MIN(screenSize.width, screenSize.height));
-    } else {
-        _physicalScreenSize = CGSizeMake(MIN(screenSize.width, screenSize.height), MAX(screenSize.width, screenSize.height));
-    }
+    _physicalScreenSize = CGSizeMake(screenSize.width, screenSize.height);
 
     dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL_WITH_AUTORELEASE_POOL,
                                                                          QOS_CLASS_USER_INTERACTIVE, 0);
