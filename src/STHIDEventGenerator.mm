@@ -43,6 +43,10 @@ static const IOHIDFloat maxMajorRadius = 8.0;
 static const IOHIDFloat minPathPressure = 0.0;
 static const IOHIDFloat maxPathPressure = 0.3;
 
+// Random timing ranges (when randomization is enabled)
+static const NSTimeInterval minFingerLiftDelay = 0.03;  // 30ms
+static const NSTimeInterval maxFingerLiftDelay = 0.12;  // 120ms
+
 static int fingerIdentifiers[] = {
     2, 3, 4, 5, 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
 };
@@ -155,6 +159,15 @@ NS_INLINE void _DTXCalcLinearPinchStartEndPoints(CGRect bounds, CGFloat pixelsSc
 NS_INLINE IOHIDFloat randomFloatInRange(IOHIDFloat min, IOHIDFloat max) {
     IOHIDFloat random = (IOHIDFloat)arc4random_uniform(10000) / 10000.0;
     return min + random * (max - min);
+}
+
+// Helper: get randomized lift delay in nanoseconds
+NS_INLINE long randomizedLiftDelayNanos(BOOL randomize) {
+    if (randomize) {
+        NSTimeInterval delay = randomFloatInRange(minFingerLiftDelay, maxFingerLiftDelay);
+        return (long)(delay * nanosecondsPerSecond);
+    }
+    return (long)(fingerLiftDelay * nanosecondsPerSecond);
 }
 
 + (STHIDEventGenerator *)sharedGenerator {
@@ -499,6 +512,7 @@ static InterpolationType interpolationFromString(NSString *string) {
             if (!pointInfo->pathMajorRadius) {
                 if (_randomizeTouchParameters) {
                     pointInfo->pathMajorRadius = randomFloatInRange(minMajorRadius, maxMajorRadius);
+                    TVLog(@"[TouchRandomize] Finger %lu: radius=%.2f (randomized)", (unsigned long)i, pointInfo->pathMajorRadius);
                 } else {
                     pointInfo->pathMajorRadius = defaultMajorRadius;
                 }
@@ -506,6 +520,7 @@ static InterpolationType interpolationFromString(NSString *string) {
             if (!pointInfo->pathPressure) {
                 if (_randomizeTouchParameters) {
                     pointInfo->pathPressure = randomFloatInRange(minPathPressure, maxPathPressure);
+                    TVLog(@"[TouchRandomize] Finger %lu: pressure=%.3f (randomized)", (unsigned long)i, pointInfo->pathPressure);
                 } else {
                     pointInfo->pathPressure = defaultPathPressure;
                 }
@@ -624,7 +639,18 @@ static void _sendHIDEvent(IOHIDEventRef eventRef, dispatch_queue_t queue) {
     _activePointCount = touchCount;
 
     for (NSUInteger index = 0; index < touchCount; ++index) {
-        _activePoints[index].point = locations[index];
+        CGPoint adjustedPoint = locations[index];
+        
+        // Add position jitter if randomization is enabled (±0.5 to ±1.5 pixels)
+        if (_randomizeTouchParameters) {
+            CGFloat jitterX = (arc4random_uniform(20) - 10) / 10.0; // -1.0 to +1.0
+            CGFloat jitterY = (arc4random_uniform(20) - 10) / 10.0;
+            adjustedPoint.x += jitterX;
+            adjustedPoint.y += jitterY;
+            TVLog(@"[TouchRandomize] Finger %lu: jitter=(%.2f, %.2f)", (unsigned long)index, jitterX, jitterY);
+        }
+        
+        _activePoints[index].point = adjustedPoint;
         _activePoints[index].isStylus = NO;
     }
 
@@ -869,11 +895,20 @@ static void _sendHIDEvent(IOHIDEventRef eventRef, dispatch_queue_t queue) {
     NSParameterAssert(delay > 0.0);
 
     struct timespec doubleDelay = {0, (long)(multiTapInterval * nanosecondsPerSecond)};
-    struct timespec pressDelay = {0, (long)(fingerLiftDelay * nanosecondsPerSecond)};
+    struct timespec pressDelay = {0, randomizedLiftDelayNanos(_randomizeTouchParameters)};
     BOOL useCustomDelay = delay > multiTapInterval;
+    
+    if (_randomizeTouchParameters) {
+        TVLog(@"[TouchRandomize] Using randomized press delay: %.3fs", (double)pressDelay.tv_nsec / nanosecondsPerSecond);
+    }
 
     for (NSUInteger i = 0; i < tapCount; i++) {
         [self _touchDown:location touchCount:touchCount];
+        
+        // Regenerate random delay for each tap if randomization is enabled
+        if (_randomizeTouchParameters && i > 0) {
+            pressDelay.tv_nsec = randomizedLiftDelayNanos(_randomizeTouchParameters);
+        }
         nanosleep(&pressDelay, 0);
         [self _liftUp:location touchCount:touchCount];
         if (useCustomDelay) {
