@@ -96,7 +96,11 @@
 
 "Logs key events to syslog for debugging. Do not leave enabled in normal use." = "将按键事件记录到系统日志用于调试。正常使用时不建议长期开启。";
 
-"Made with ♥ by OwnGoal Studio" = "「乌龙工作室」倾情献制";
+"Randomize Touch Parameters" = "随机化触摸参数";
+
+"Randomizes touch pressure (0.0-0.3) and radius (4-8px) to simulate natural human input and reduce detection by anti-automation systems." = "随机化触摸压力（0.0-0.3）和半径（4-8 像素）以模拟自然的人类输入，降低被自动化检测系统识别的风险。";
+
+"Made with ♥ by OwnGoal Studio" = "「乌龙工作室」倾情献制";
 
 "Match iOS natural scroll direction for mouse wheel/trackpad; disable for traditional desktop direction." = "使鼠标滚轮/触控板滚动方向与 iOS 的 “自然滚动” 保持一致；关闭则使用传统桌面方向。";
 

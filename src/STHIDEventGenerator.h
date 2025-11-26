@@ -110,6 +110,9 @@ __used NS_INLINE void STAccurateSleep(NSTimeInterval seconds) {
 // Keep-Alive: interval in seconds. 0 disables the timer (default 0).
 @property (nonatomic) NSTimeInterval keepAliveInterval;
 
+// Randomize touch parameters (pressure, radius) to mimic human touch. Default NO.
+@property (nonatomic) BOOL randomizeTouchParameters;
+
 /* MARK: --- Touches --- */
 
 - (void)touchDown:(CGPoint)location;

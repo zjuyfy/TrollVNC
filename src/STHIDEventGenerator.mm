@@ -37,6 +37,12 @@ static const IOHIDFloat defaultMajorRadius = 5;
 static const IOHIDFloat defaultPathPressure = 0;
 static const long nanosecondsPerSecond = 1e9;
 
+// Random touch parameter ranges (when randomization is enabled)
+static const IOHIDFloat minMajorRadius = 4.0;
+static const IOHIDFloat maxMajorRadius = 8.0;
+static const IOHIDFloat minPathPressure = 0.0;
+static const IOHIDFloat maxPathPressure = 0.3;
+
 static int fingerIdentifiers[] = {
     2, 3, 4, 5, 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
 };
@@ -142,6 +148,13 @@ NS_INLINE void _DTXCalcLinearPinchStartEndPoints(CGRect bounds, CGFloat pixelsSc
     dispatch_queue_t _hidEventQueue;
     NSTimeInterval _keepAliveInterval;
     NSTimer *_keepAliveTimer;
+    BOOL _randomizeTouchParameters;
+}
+
+// Generate random float in range [min, max]
+NS_INLINE IOHIDFloat randomFloatInRange(IOHIDFloat min, IOHIDFloat max) {
+    IOHIDFloat random = (IOHIDFloat)arc4random_uniform(10000) / 10000.0;
+    return min + random * (max - min);
 }
 
 + (STHIDEventGenerator *)sharedGenerator {
@@ -174,6 +187,9 @@ NS_INLINE void _DTXCalcLinearPinchStartEndPoints(CGRect bounds, CGFloat pixelsSc
     // Default: keepAliveInterval disabled
     _keepAliveInterval = 0;
     _keepAliveTimer = nil;
+    
+    // Default: randomization disabled
+    _randomizeTouchParameters = NO;
 
     return self;
 }
@@ -230,6 +246,18 @@ NS_INLINE void _DTXCalcLinearPinchStartEndPoints(CGRect bounds, CGFloat pixelsSc
         dispatch_async(dispatch_get_main_queue(), ^{
             [self _scheduleKeepAliveTimerIfNeededOnMainThread];
         });
+}
+
+- (BOOL)randomizeTouchParameters {
+    @synchronized(self) {
+        return _randomizeTouchParameters;
+    }
+}
+
+- (void)setRandomizeTouchParameters:(BOOL)randomizeTouchParameters {
+    @synchronized(self) {
+        _randomizeTouchParameters = randomizeTouchParameters;
+    }
 }
 
 #pragma mark - HID Events
@@ -468,10 +496,20 @@ static InterpolationType interpolationFromString(NSString *string) {
     for (NSUInteger i = 0; i < _activePointCount; ++i) {
         SyntheticEventDigitizerInfo *pointInfo = &_activePoints[i];
         if (eventType == HandEventTouched) {
-            if (!pointInfo->pathMajorRadius)
-                pointInfo->pathMajorRadius = defaultMajorRadius;
-            if (!pointInfo->pathPressure)
-                pointInfo->pathPressure = defaultPathPressure;
+            if (!pointInfo->pathMajorRadius) {
+                if (_randomizeTouchParameters) {
+                    pointInfo->pathMajorRadius = randomFloatInRange(minMajorRadius, maxMajorRadius);
+                } else {
+                    pointInfo->pathMajorRadius = defaultMajorRadius;
+                }
+            }
+            if (!pointInfo->pathPressure) {
+                if (_randomizeTouchParameters) {
+                    pointInfo->pathPressure = randomFloatInRange(minPathPressure, maxPathPressure);
+                } else {
+                    pointInfo->pathPressure = defaultPathPressure;
+                }
+            }
             if (!pointInfo->pathProximity)
                 pointInfo->pathProximity = kGSEventPathInfoInTouch | kGSEventPathInfoInRange;
         } else if (eventType == HandEventLifted || eventType == HandEventCanceled || eventType == StylusEventLifted) {

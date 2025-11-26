@@ -836,6 +836,28 @@
 			<true/>
 		</dict>
 
+		<!-- Randomize Touch (anti-detection) -->
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string></string>
+			<key>footerText</key>
+			<string>Randomizes touch pressure (0.0-0.3) and radius (4-8px) to simulate natural human input and reduce detection by anti-automation systems.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>defaults</key>
+			<string>com.82flex.trollvnc</string>
+			<key>key</key>
+			<string>RandomizeTouch</string>
+			<key>label</key>
+			<string>Randomize Touch Parameters</string>
+			<key>default</key>
+			<false/>
+		</dict>
+
 		<!-- Log Keyboard Events (debug) -->
 		<dict>
 			<key>cell</key>

@@ -102,6 +102,7 @@ static BOOL gAutoAssistEnabled = NO;
 static BOOL gCursorEnabled = NO;
 static BOOL gKeyEventLogging = NO;
 static BOOL gOrientationSyncEnabled = YES;
+static BOOL gRandomizeTouchEnabled = NO; // Randomize touch pressure/radius to mimic human
 
 // Classic VNC authentication
 static char **gAuthPasswdVec = NULL;        // owns the vector
@@ -275,7 +276,8 @@ static void printUsageAndExit(const char *prog) {
             "  -w k=v,.. Wheel tuning keys: step,coalesce,max,clamp,amp,cap,minratio,durbase,durk,durmin,durmax\n");
     fprintf(stderr, "  -N         Natural scroll direction (invert wheel)\n");
     fprintf(stderr, "  -M scheme  Modifier mapping: std|altcmd (default: std)\n");
-    fprintf(stderr, "  -K         Log keyboard events to stderr\n\n");
+    fprintf(stderr, "  -K         Log keyboard events to stderr\n");
+    fprintf(stderr, "  -r         Randomize touch pressure/radius (anti-detection, default: off)\n\n");
 
     fprintf(stderr, "HTTP/WebSockets:\n");
     fprintf(stderr, "  -H port    Enable built-in HTTP server on port (0=off, default: 0)\n");
@@ -576,6 +578,9 @@ static void parseDaemonOptions(void) {
     NSNumber *orientN = [prefs objectForKey:@"OrientationSync"];
     if ([orientN isKindOfClass:[NSNumber class]])
         gOrientationSyncEnabled = orientN.boolValue;
+    NSNumber *randomTouchN = [prefs objectForKey:@"RandomizeTouch"];
+    if ([randomTouchN isKindOfClass:[NSNumber class]])
+        gRandomizeTouchEnabled = randomTouchN.boolValue;
     NSNumber *naturalN = [prefs objectForKey:@"NaturalScroll"];
     if ([naturalN isKindOfClass:[NSNumber class]])
         gWheelNaturalDir = naturalN.boolValue;
@@ -842,9 +847,9 @@ static void parseDaemonOptions(void) {
     [cfg appendFormat:@"scale=%.2f fps=%d:%d:%d defer=%.3f ", gScale, gFpsMin, gFpsPref, gFpsMax, gDeferWindowSec];
     [cfg appendFormat:@"inflight=%d tile=%d full%%=%d rects=%d ", gMaxInflightUpdates, gTileSize,
                       gFullscreenThresholdPercent, gMaxRectsLimit];
-    [cfg appendFormat:@"async=%@ cursor=%@ orient=%@ keylog=%@ ", gAsyncSwapEnabled ? @"YES" : @"NO",
+    [cfg appendFormat:@"async=%@ cursor=%@ orient=%@ keylog=%@ randomTouch=%@ ", gAsyncSwapEnabled ? @"YES" : @"NO",
                       gCursorEnabled ? @"YES" : @"NO", gOrientationSyncEnabled ? @"YES" : @"NO",
-                      gKeyEventLogging ? @"YES" : @"NO"];
+                      gKeyEventLogging ? @"YES" : @"NO", gRandomizeTouchEnabled ? @"YES" : @"NO"];
 
     // Wheel / input tuning
     [cfg appendFormat:@"wheel=%.1f natural=%@ mod=%s ", gWheelStepPx, gWheelNaturalDir ? @"YES" : @"NO",
@@ -1051,7 +1056,7 @@ static void parseCLI(int argc, const char *argv[]) {
 #pragma clang diagnostic pop
 
     int opt;
-    const char *optstr = "p:n:vA:c:C:s:F:d:Q:t:P:R:aW:w:NM:KU:O:I:i:H:D:e:k:B:T:Vh";
+    const char *optstr = "p:n:vA:c:C:s:F:d:Q:t:P:R:aW:w:NM:KU:O:rI:i:H:D:e:k:B:T:Vh";
     optind = 1;
     while ((opt = getopt(__argc2, __argv2.data(), optstr)) != -1) {
         switch (opt) {
@@ -1327,6 +1332,11 @@ static void parseCLI(int argc, const char *argv[]) {
                 TVPrintError("Invalid -O value: %s (expected on|off|1|0|true|false)", val);
                 exit(EXIT_FAILURE);
             }
+            break;
+        }
+        case 'r': {
+            gRandomizeTouchEnabled = YES;
+            TVLog(@"CLI: Touch randomization enabled (-r)");
             break;
         }
         case 'I': {
@@ -4082,6 +4092,10 @@ static enum rfbNewClientAction newClientHook(rfbClientPtr cl) {
         [[STHIDEventGenerator sharedGenerator] setKeepAliveInterval:gKeepAliveSec];
         TVLog(@"KeepAlive started with interval (%.3f sec)", gKeepAliveSec);
     }
+    
+    // RandomizeTouch: apply setting to event generator
+    [[STHIDEventGenerator sharedGenerator] setRandomizeTouchParameters:gRandomizeTouchEnabled];
+    TVLog(@"Touch randomization %@", gRandomizeTouchEnabled ? @"enabled" : @"disabled");
 
     return RFB_CLIENT_ACCEPT;
 }
