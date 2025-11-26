@@ -25,6 +25,7 @@
 #import <UIKit/UIScreen.h>
 #import <mach/mach.h>
 
+#import "FBSOrientationObserver.h"
 #import "IOKitSPI.h"
 #import "IOSurfaceSPI.h"
 #import "Logging.h"
@@ -77,8 +78,17 @@ void CARenderServerRenderDisplay(kern_return_t a, CFStringRef b, IOSurfaceRef su
     int width, height;
     CGSize screenSize = [[UIScreen mainScreen] _unjailedReferenceBoundsInPixels].size;
 
-    width = (int)round(screenSize.width);
-    height = (int)round(screenSize.height);
+    FBSOrientationObserver *orientationObserver = [[FBSOrientationObserver alloc] init];
+    UIInterfaceOrientation orientation = [orientationObserver activeInterfaceOrientation];
+    TVLog(@"ScreenCapturer: Init with orientation %ld, screenSize %@", (long)orientation, NSStringFromCGSize(screenSize));
+
+    if (UIInterfaceOrientationIsLandscape(orientation)) {
+        width = (int)round(MAX(screenSize.width, screenSize.height));
+        height = (int)round(MIN(screenSize.width, screenSize.height));
+    } else {
+        width = (int)round(MIN(screenSize.width, screenSize.height));
+        height = (int)round(MAX(screenSize.width, screenSize.height));
+    }
 
     // Pixel format for Alpha, Red, Green and Blue
     unsigned pixelFormat = 0x42475241; // 'ARGB'
